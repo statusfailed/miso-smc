@@ -10,5 +10,5 @@ maintainer: sf@statusfailed.com
 
 executable miso-smc
   main-is:             Main.hs
-  build-depends:       base, miso, aeson, containers, hypergraph-rewriting
+  build-depends:       base, miso, aeson, containers, hypergraph-rewriting, bimap
   default-language:    Haskell2010

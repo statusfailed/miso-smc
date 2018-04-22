@@ -1,5 +1,5 @@
-{ mkDerivation, aeson, base, containers, hypergraph-rewriting, miso
-, stdenv
+{ mkDerivation, aeson, base, bimap, containers
+, hypergraph-rewriting, miso, stdenv
 }:
 mkDerivation {
   pname = "miso-smc";
@@ -8,7 +8,7 @@ mkDerivation {
   isLibrary = false;
   isExecutable = true;
   executableHaskellDepends = [
-    aeson base containers hypergraph-rewriting miso
+    aeson base bimap containers hypergraph-rewriting miso
   ];
   description = "miso-smc";
   license = stdenv.lib.licenses.mit;
