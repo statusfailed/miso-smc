@@ -66,19 +66,24 @@ viewShow = text . S.ms . show
 data Model = Model
   { generatorsJSON :: MisoString
   , generators     :: Map String (Int, Int)
-  , patternParse   :: Either String (Hypergraph Int String)
   , graphParse     :: Either String (Hypergraph Int String)
+  , patternParse   :: Either String (Hypergraph Int String)
+  , rewriteParse   :: Either String (Hypergraph Int String)
+  , rewriteResult  :: Either String (Hypergraph Int String)
   , matchConvex    :: Bool -- accept convex matches only?
   } deriving(Eq, Read, Show, Generic)
 
 emptyModel :: Model
-emptyModel = Model "" Map.empty (Left "no data") (Left "no data") False
+emptyModel =
+  Model "" Map.empty (Left msg) (Left msg) (Left msg) (Left msg) False
+  where msg = "no data"
 
 data Msg
   = NoOp
   | EditGeneratorsJSON MisoString
-  | EditPatternAST MisoString
   | EditGraphAST MisoString
+  | EditPatternAST MisoString
+  | EditRewriteAST MisoString
   | MatchConvex Bool
 
 instance ToJSON Model
@@ -105,6 +110,19 @@ updateModel (EditPatternAST s) m@Model{..} = do
 updateModel (EditGraphAST s) m@Model{..} = do
   pure $ m { graphParse = parseGraph generators (S.fromMisoString s) }
 
+updateModel (EditRewriteAST s) m@Model{..} = do
+  pure $ m
+    { rewriteParse = rp
+    , rewriteResult = result
+    }
+  where
+    rp = parseGraph generators (S.fromMisoString s)
+    result = do
+      g   <- graphParse
+      lhs <- patternParse
+      rhs <- rp
+      maybe (Left "rewriting failed") Right $ rewrite (lhs, rhs) g
+
 updateModel (MatchConvex x) m = pure $ m { matchConvex = x }
 
 updateModel _ m = pure m
@@ -129,6 +147,8 @@ viewModel m@Model{..} = bsRows
   , patternGraphEditor m
   , [rowSpacer]
   , viewMatching m
+  , [rowSpacer]
+  , viewRewriting m
   , [rowSpacer]
   , [div_ [class_ "col-12"]
       [ h4_ [] ["debugging"]
@@ -233,7 +253,7 @@ patternGraphEditor m = [left, center, right] where
     ]
 
   right  = col4
-    [ h4_ [] ["pattern expression AST"]
+    [ h4_ [] ["LHS pattern expression AST"]
     , editBox "pattern to find match for" EditPatternAST
     , displayGraph (patternParse m) (generators m)
     ]
@@ -299,3 +319,24 @@ mkStroke (Matching nodes edges) = Map.fromList (vs ++ es)
 matchingToVE :: Matching -> [VE]
 matchingToVE (Matching nodes edges) =
   fmap V (Bimap.elems nodes) ++ fmap E (Bimap.elems edges)
+
+-------------- Rewriting ----------------
+
+exampleRHSExpression = "Seq\n  Twist\n  (Par (Generator \"E4\") (Generator \"E4\"))"
+
+viewRewriting :: Model -> [View Msg]
+viewRewriting m@Model{..} = [left, right]
+  where
+    left = col6
+      [ h4_ [] ["RHS of rewrite rule"]
+      , p_ [] ["Try this example RHS rule:"]
+      , pre_ [] [text exampleRHSExpression]
+      , editBox "expression for RHS of rewrite rule" EditRewriteAST
+      ]
+
+    right = col6
+      [ h4_ [] ["RHS graph"]
+      , displayGraph rewriteParse generators
+      , h4_ [] ["Rewritten graph"]
+      , displayGraph rewriteResult generators
+      ]
